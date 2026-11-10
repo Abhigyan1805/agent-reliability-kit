@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib
+import os
+import sys
 from typing import TYPE_CHECKING
 
 from .base import Agent, FunctionAgent, Session
@@ -25,5 +27,7 @@ def build_agent(config: RunConfig) -> Agent:
         return LangGraphAgent(config)
     if ":" in config.adapter:
         module_name, _, attribute = config.adapter.partition(":")
+        if os.getcwd() not in sys.path:
+            sys.path.insert(0, os.getcwd())
         return getattr(importlib.import_module(module_name), attribute)(config)
     raise ValueError(f"unknown adapter {config.adapter!r}")

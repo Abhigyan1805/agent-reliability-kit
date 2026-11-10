@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import json
 import re
-import secrets as _secrets
 from collections.abc import Callable
 from dataclasses import replace
 from typing import Any
 
 from .environment import AgentTask, ToolHandle
+from .faults import stable_seed
 from .matching import normalize_text
 
 _ZERO_WIDTH = re.compile("[​‌‍⁠﻿­]")
@@ -39,8 +39,12 @@ QUARANTINE_NOTICE = (
 
 
 def quarantine(task: AgentTask) -> AgentTask:
-    """Mark tool output as untrusted data, with an unguessable per-run delimiter."""
-    tag = _secrets.token_hex(4)
+    """Mark tool output as untrusted data, inside a per-scenario delimiter.
+
+    The tag is derived rather than random so that responses can be cached. The kit's payloads
+    are fixed in advance and cannot guess it. A deployment should use a random value per call.
+    """
+    tag = f"{stable_seed(task.scenario_id, task.trial) & 0xFFFFFFFF:08x}"
 
     def wrap(handle: ToolHandle) -> ToolHandle:
         def guarded(args: dict[str, Any]) -> str:

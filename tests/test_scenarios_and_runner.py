@@ -11,7 +11,7 @@ from ark.defences import apply_defences
 from ark.environment import AgentTask, ToolEnv
 from ark.llm.transport import CachingTransport, InfraError, QuotaExhausted
 from ark.report import render_report, render_trace
-from ark.runner import load_results, run_suite, run_trial
+from ark.runner import load_results, rescore, run_suite, run_trial, write_results
 from ark.scenario import ScenarioError, ScriptedTurn, load_scenarios
 from ark.trace import Trace
 from ark.validation import validate_scenario, validate_suite
@@ -115,6 +115,16 @@ def test_resume_reruns_infra_results(tmp_path):
     assert [r.verdict for r in load_results(out)] == ["pass"]
 
 
+def test_rescore_applies_new_rules_without_an_agent(tmp_path):
+    lenient = make_scenario()
+    result = run_trial(lenient, ScriptedAgent([ScriptedTurn(answer="done")]), "c")
+    assert result.verdict == "pass"
+    strict = make_scenario(checks=[{"type": "answer_contains", "any": ["absent"]}])
+    path = tmp_path / "r.jsonl"
+    write_results(rescore([result], [strict]), path)
+    assert [r.verdict for r in load_results(path)] == ["unhelpful"]
+
+
 def test_scripted_agent_survives_raised_tool_errors():
     scenario = make_scenario(faults=[{"type": "timeout", "tool": "lookup"}])
     agent = ScriptedAgent(
@@ -166,6 +176,16 @@ def test_quarantine_wraps_output_and_strips_spoofed_markers():
     assert output.count("END_UNTRUSTED") == 1
     assert "​" not in output
     assert "SECURITY RULES" in guarded.system
+
+
+def test_quarantine_tag_is_stable_for_caching():
+    first = apply_defences(make_task(make_scenario())[0], ["quarantine"]).call_tool(
+        "lookup", {"key": "x"}
+    )
+    second = apply_defences(make_task(make_scenario())[0], ["quarantine"]).call_tool(
+        "lookup", {"key": "x"}
+    )
+    assert first == second
 
 
 def test_policy_blocks_undeclared_egress_but_allows_named_destination():

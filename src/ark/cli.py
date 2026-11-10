@@ -1,4 +1,4 @@
-"""Command line interface: ``ark list | validate | run | report | show``."""
+"""Command line interface: ``ark list | validate | run | rescore | report | show``."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from .adapters import build_agent
 from .config import load_config, load_env_file
 from .report import render_report, render_trace
-from .runner import load_results, run_suite
+from .runner import load_results, rescore, run_suite, write_results
 from .scenario import ScenarioError, load_scenarios
 from .scoring import ScenarioResult, summarise
 from .validation import validate_suite
@@ -75,6 +75,23 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_rescore(args: argparse.Namespace) -> int:
+    scenarios = load_scenarios(args.suite)
+    for path in args.results:
+        before = load_results(path)
+        after = rescore(before, scenarios)
+        write_results(after, path)
+        changed = [
+            f"{old.scenario_id}: {old.verdict} -> {new.verdict}"
+            for old, new in zip(before, after, strict=True)
+            if old.verdict != new.verdict
+        ]
+        print(f"{path}: {len(changed)} verdict(s) changed")
+        for line in changed:
+            print(f"  {line}")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     runs: dict[str, list[ScenarioResult]] = {}
     for path in args.results:
@@ -126,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--fresh", action="store_true", help="ignore existing results")
     run.add_argument("--env-file", help="KEY=VALUE file with API keys")
     run.set_defaults(handler=cmd_run)
+
+    rescoring = commands.add_parser("rescore", help="re-apply current checks to stored traces")
+    rescoring.add_argument("results", nargs="+", help="results JSONL files, updated in place")
+    rescoring.add_argument("--suite", default="scenarios", help="scenario file or directory")
+    rescoring.set_defaults(handler=cmd_rescore)
 
     report = commands.add_parser("report", help="compare one or more result files")
     report.add_argument("results", nargs="+", help="results JSONL files")

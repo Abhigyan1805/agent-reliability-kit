@@ -88,6 +88,19 @@ def load_results(path: str | Path) -> list[ScenarioResult]:
     return list(latest.values())
 
 
+def rescore(results: list[ScenarioResult], scenarios: list[Scenario]) -> list[ScenarioResult]:
+    """Apply the current checks to stored traces. No agent or model is involved."""
+    by_id = {s.id: s for s in scenarios}
+    return [
+        evaluate(by_id[r.scenario_id], r.trace) if r.scenario_id in by_id else r for r in results
+    ]
+
+
+def write_results(results: list[ScenarioResult], path: str | Path) -> None:
+    lines = [json.dumps(r.model_dump(), ensure_ascii=False) for r in results]
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def run_suite(
     scenarios: list[Scenario],
     agent: Agent,

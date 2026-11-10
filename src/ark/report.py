@@ -11,7 +11,8 @@ def _cell(entry: dict) -> str:
     if not entry["total"]:
         return "n/a"
     low, high = entry["ci95"]
-    return f"{entry['rate'] * 100:.0f}% ({entry['passed']}/{entry['total']}) [{low * 100:.0f}-{high * 100:.0f}]"
+    share = f"{entry['passed']}/{entry['total']}"
+    return f"{entry['rate'] * 100:.0f}% ({share}) [{low * 100:.0f}-{high * 100:.0f}]"
 
 
 def render_report(runs: dict[str, list[ScenarioResult]]) -> str:
