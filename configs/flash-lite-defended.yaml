@@ -1,0 +1,9 @@
+name: flash-lite-defended
+adapter: openai_loop
+model: gemini-3.5-flash-lite
+defences: [quarantine, tool_policy]
+base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+api_key_env: GOOGLE_API_KEY
+temperature: 0
+max_steps: 8
+min_interval_s: 4.5
